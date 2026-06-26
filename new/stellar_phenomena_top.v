@@ -22,6 +22,8 @@ module stellar_phenomena_top(
     /*          rv32           */
     wire [31:0] px_reg;
     wire [31:0] py_reg;
+    wire [31:0] bullet_px_reg;
+    wire [31:0] bullet_py_reg;
 
     rv32 rv32(
         .clk(clk_buffered),
@@ -29,7 +31,9 @@ module stellar_phenomena_top(
         .btn_right(btn_right),
         .btn_fire(btn_fire),
         .px_reg(px_reg),
-        .py_reg(py_reg)
+        .py_reg(py_reg),
+        .bullet_px_reg(bullet_px_reg),
+        .bullet_py_reg(bullet_py_reg)
     );
 
     /*          VGA            */
@@ -38,11 +42,12 @@ module stellar_phenomena_top(
         .reset(reset),
         .px_reg(px_reg[9:0]),
         .py_reg(py_reg[9:0]),
+        .bullet_px_reg(bullet_px_reg[9:0]),
+        .bullet_py_reg(bullet_py_reg[9:0]),
         .hsync(vga_hs),
         .vsync(vga_vs),
         .vga_r(vga_r),
         .vga_g(vga_g),
         .vga_b(vga_b)
     );
-
 endmodule
