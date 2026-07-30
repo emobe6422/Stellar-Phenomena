@@ -24,8 +24,10 @@ int main () {
     volatile uint32_t* alien_grid_px_reg = (volatile uint32_t*)0x60000000;
     volatile uint32_t* alien_grid_py_reg = (volatile uint32_t*)0x70000000; 
     volatile uint32_t* alien_status = (volatile uint32_t*)0x80000000; 
-
-      
+    volatile uint32_t* alien_bullet_px_reg_one = (volatile uint32_t*)0x90000000;
+    volatile uint32_t* alien_bullet_py_reg_one = (volatile uint32_t*)0x11000000;
+    volatile uint32_t* alien_bullet_px_reg_two = (volatile uint32_t*)0x12000000;
+    volatile uint32_t* alien_bullet_py_reg_two = (volatile uint32_t*)0x13000000;
     
     /*
      * Store the position of 1 alien and then everything else is jsut relative to that
@@ -40,19 +42,32 @@ int main () {
     uint32_t bullet_x;
     uint32_t bullet_y = 500;  // start off screen
     uint8_t bullet_active = 0;
-    *bullet_py_reg = 500;     // initialize off screen
-
-
+    *bullet_py_reg = bullet_y;     // initialize off screen
+    //initial alien bullet one position
+    uint32_t alien_bullet_one_x;
+    uint32_t alien_bullet_one_y = 600;  // start off screen
+    //initial alien bullet two position
+    uint32_t alien_bullet_two_x;
+    uint32_t alien_bullet_two_y = 700;  // start off screen
 
     //"frames"
-    const uint32_t player_division_rate = 300000;
+    const uint32_t player_division_rate = 200000;
     const uint32_t bullet_division_rate = 50000;
-    const uint32_t alien_division_rate = 500000;
+    const uint32_t alien_bullet_division_rate = 50000;
+    const uint32_t alien_division_rate = 600000;
+    const uint32_t alien_bullet_division_rate = 100000;
 
     //counters
     uint32_t player_counter = 0; 
     uint32_t bullet_counter = 0; 
     uint32_t alien_counter = 0; 
+    uint32_t alien_bullet_counter = 0; 
+
+
+    //I STOPPED HERE then started working on designs for the other 2 aliens
+
+
+
 
     /* alien/angel logic */
     uint32_t alien_x = 170;
@@ -61,9 +76,8 @@ int main () {
     *alien_grid_py_reg = alien_y;
     //random stuff
     uint32_t aliens_alive = 0xFFFFFFFF; //bit mask. Each 1 represents a live alien
-    //only concerned with the 5 bits in the lsb F's
     *alien_status = aliens_alive;
-
+    uint8_t direction = 0; //0 right 1 left
     while (1) {
         /*             player logic            */
         if (player_counter >= player_division_rate) {
@@ -103,29 +117,47 @@ int main () {
         } else {
             bullet_counter++;
         }
-
         /*              alien logic              */
         if (alien_counter >= alien_division_rate) {
-            //initial alien coordinates
-            if (alien_x > 0) {
-                alien_x += 1;
-                *alien_grid_px_reg = alien_x;
-            } 
-            uint32_t increment = 0;
-            for (uint8_t i = 0; i < 4; i++) {
-                if (bullet_active && (*bullet_py_reg <= *alien_grid_py_reg + 31) && (*bullet_px_reg >= *alien_grid_px_reg - 32 + increment + 16) && (*bullet_px_reg < *alien_grid_px_reg + increment + 16)) {
-                    aliens_alive &= ~(1 << i);
-                    *alien_status = aliens_alive;
-                    bullet_active = 0;
-                     *bullet_py_reg = 500;  // move off screen
-                }
-                increment+=64;
+        // Move in the current direction (0 = Right, 1 = Left)
+            if (direction == 0) {
+                alien_x++;
+            } else {
+                alien_x--;
             }
+            if (alien_x >= 250) {
+                direction = 1; // Reached right wall -> start moving left
+            } else if (alien_x <= 180) {
+                direction = 0; // Reached left wall -> start moving right
+            }
+
+            *alien_grid_px_reg = alien_x;
+            uint16_t increment_1 = 0;
+            uint16_t increment_2 = 0;
+            for (uint8_t i = 0; i < 3; i++) {
+                increment_1 = 0;  // reset for each new row
+                for (uint8_t j = 0; j < 4; j++) {
+                    uint8_t bit_index = i * 4 + j;
+                    if (bullet_active && 
+                        (*bullet_py_reg >= *alien_grid_py_reg + increment_2) &&
+                        (*bullet_py_reg <= *alien_grid_py_reg + 31 + increment_2) &&
+                        ((aliens_alive >> bit_index) & 1) &&
+                        (*bullet_px_reg >= *alien_grid_px_reg - 32 + increment_1 + 16) &&
+                        (*bullet_px_reg < *alien_grid_px_reg + increment_1 + 16)) {
+                        aliens_alive &= ~(1 << bit_index);
+                        *alien_status = aliens_alive;
+                        bullet_active = 0;
+                        *bullet_py_reg = 500;
+                    }
+                    increment_1 += 64;
+                }
+                increment_2 += 64;
+            }
+
             alien_counter = 0;
         } else {
             alien_counter++;
             //if an alien is dead it cannot shoot
-            //if a bullet hits an alien it must disappear along with the bullet
         }
     }
     return (0);
